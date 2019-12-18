@@ -3,6 +3,9 @@ using System.Net;
 using System.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
+using System.Linq;
 
 namespace Ceasar
 {
@@ -12,9 +15,11 @@ namespace Ceasar
         {
             string html = string.Empty;
             string url = @"https://api.codenation.dev/v1/challenge/dev-ps/generate-data?token=";
-            string token = "62d7bc55dd38ba9f47a64c310afb88d3dba8453e";
+            string token = string.Empty;
             string fileName = "answer.json";
             string targetPath = @"C:\TEMP\";
+
+            token = Console.ReadLine();
 
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url + token);
 
@@ -35,14 +40,17 @@ namespace Ceasar
             Dossie dossie = JsonConvert.DeserializeObject<Dossie>(html);
             Console.WriteLine($"numero_casas: {dossie.numero_casas}, token: {dossie.token}, cifrado: {dossie.cifrado}, decifrado: {dossie.decifrado}, resumo_criptografico: {dossie.resumo_criptografico}");
 
-            string decripted = Utilities.DecriptMessage(int.Parse(dossie.numero_casas), dossie.cifrado);
+            string decripted = Utilities.DecriptMessage(int.Parse(dossie.numero_casas), dossie.cifrado.ToLower());
             Console.WriteLine(decripted);
-
             dossie.decifrado = decripted;
+
+            string hash = Utilities.Hash(dossie.decifrado);
+            Console.WriteLine(hash);
+            dossie.resumo_criptografico = hash;
+
             html = JsonConvert.SerializeObject(dossie);
             File.WriteAllText(targetPath + fileName, html);
             Console.ReadKey();
-
         }
     }
 
@@ -83,8 +91,8 @@ namespace Ceasar
                 if (alphabet.Contains(c))
                 {
                     int alphabetIndex = alphabet.IndexOf(c);
-                    if (alphabetIndex - keyNumber <= 0)
-                        alphabetIndex = (alphabetIndex - keyNumber) + 25;
+                    if (alphabetIndex - keyNumber < 0)
+                        alphabetIndex = (alphabetIndex - keyNumber) + 26;
                     else
                         alphabetIndex -= keyNumber;
 
@@ -97,6 +105,12 @@ namespace Ceasar
             }
 
             return decriptedMessage;
+        }
+
+        public static string Hash(string input)
+        {
+            byte[] hash = new SHA1Managed().ComputeHash(Encoding.UTF8.GetBytes(input));
+            return string.Concat(hash.Select(b => b.ToString("x2")));
         }
     }
 }
